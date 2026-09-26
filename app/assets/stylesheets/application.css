@@ -37,6 +37,19 @@ img {
   height: auto;
 }
 
+/* Read by screen readers, never seen: the live region that names each photo. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ---------- no-js: a quiet stacked gallery ---------- */
 
 html.no-js .slideshow {
@@ -272,8 +285,11 @@ html.js .slideshow.is-idle .slideshow__controls {
 }
 
 /* Hidden controls take no taps: a finger on the invisible bar lands on the
-   stage, which wakes the chrome instead of pressing a button unseen. */
-html.js .slideshow.is-idle .slideshow__controls:not(:focus-within) {
+   stage, which wakes the chrome instead of pressing a button unseen. A click
+   or tap leaves focus on the button, so this must not key off :focus-within;
+   keyboard focus never meets is-idle, because the script wakes on focusin and
+   will not sleep while a control is :focus-visible. */
+html.js .slideshow.is-idle .slideshow__controls {
   pointer-events: none;
 }
 
@@ -281,8 +297,10 @@ html.js .slideshow.is-idle {
   cursor: none;
 }
 
-html.js .slideshow.is-idle .slideshow__controls:focus-within {
+/* Belt and braces: a keyboard-focused control is never hidden. */
+html.js .slideshow.is-idle .slideshow__controls:has(:focus-visible) {
   opacity: 1;
+  pointer-events: auto;
 }
 
 /* ---------- reduced motion: cut, don't fade or drift ---------- */

@@ -4,13 +4,36 @@
 # width/height are the pixel sizes of the files in app/assets/images/photos,
 # so the browser reserves each photo's box before it loads. PhotoTest reads
 # them back out of the JPEG headers, so a re-exported photo cannot drift.
+#
+# A photo wider than a phone needs also carries smaller copies beside it
+# (greig9-640w.jpg, greig9-1200w.jpg), one per VARIANT_WIDTHS entry narrower
+# than the photo. The page lists them in srcset so a phone downloads the copy
+# its screen can show instead of the 2400px original.
 class Photo < Data.define(:number, :width, :height, :alt)
+  VARIANT_WIDTHS = [ 640, 1200 ].freeze
+
+  Variant = Data.define(:filename, :width, :height)
+
   def self.all
     ALL
   end
 
   def filename
     "photos/greig#{number}.jpg"
+  end
+
+  def variants
+    VARIANT_WIDTHS.select { |w| w < width }.map do |w|
+      Variant.new(filename: "photos/greig#{number}-#{w}w.jpg", width: w, height: (height * w / width.to_f).round)
+    end
+  end
+
+  # image_tag's srcset: every smaller copy plus the original, by pixel width.
+  # Nil when there is nothing smaller to offer.
+  def srcset
+    return if variants.empty?
+
+    variants.to_h { |variant| [ variant.filename, "#{variant.width}w" ] }.merge(filename => "#{width}w")
   end
 
   def orientation

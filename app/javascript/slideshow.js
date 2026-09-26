@@ -19,6 +19,7 @@ export class Slideshow {
     this.stage = root.querySelector("[data-slideshow-stage]")
     this.slides = Array.from(root.querySelectorAll("[data-slide]"))
     this.counter = root.querySelector("[data-slideshow-counter]")
+    this.status = root.querySelector("[data-slideshow-status]")
     this.hint = root.querySelector("[data-slideshow-hint]")
     this.toggleButton = root.querySelector('[data-action="toggle"]')
     this.fullscreenButton = root.querySelector('[data-action="fullscreen"]')
@@ -29,7 +30,8 @@ export class Slideshow {
   }
 
   start() {
-    this.show(this.index, { restart: true })
+    // No announcement on load: the page title and first photo speak for themselves.
+    this.show(this.index, { restart: true, announce: false })
     this.bindControls()
     this.bindKeyboard()
     this.bindSwipe()
@@ -55,7 +57,7 @@ export class Slideshow {
     return this.slides.length
   }
 
-  show(index, { restart = false } = {}) {
+  show(index, { restart = false, announce = true } = {}) {
     const next = ((index % this.count) + this.count) % this.count
 
     this.slides.forEach((slide, i) => {
@@ -72,7 +74,16 @@ export class Slideshow {
 
     this.index = next
     this.counter.textContent = `${next + 1} / ${this.count}`
+    if (announce) this.announce(next)
     this.warm(next + 1)
+  }
+
+  // Class and aria-hidden flips on the slides are not announced, so a
+  // visually hidden live region says which photo is now showing.
+  announce(index) {
+    if (!this.status) return
+    const alt = this.slides[index].querySelector(".slide__photo")?.alt || ""
+    this.status.textContent = `Photo ${index + 1} of ${this.count}${alt ? `: ${alt}` : ""}`
   }
 
   next() {
@@ -125,7 +136,7 @@ export class Slideshow {
     this.toggleButton.setAttribute("aria-label", playing ? "Pause slideshow" : "Play slideshow")
     // Announce each photo only when the viewer is driving; a live region
     // that talks every six seconds is noise.
-    this.stage.setAttribute("aria-live", playing ? "off" : "polite")
+    this.status?.setAttribute("aria-live", playing ? "off" : "polite")
   }
 
   // ---- input ------------------------------------------------------------
@@ -207,9 +218,19 @@ export class Slideshow {
   // ---- idle chrome ------------------------------------------------------
 
   bindIdle() {
-    const wake = () => this.wake()
-    this.root.addEventListener("mousemove", wake, { passive: true })
-    this.root.addEventListener("focusin", wake)
+    // Only a mouse that actually moved wakes the chrome. Chrome also fires
+    // mousemove at a resting cursor when the element under it changes, and
+    // the idle bar dropping its pointer events is exactly such a change, so
+    // a cursor left on a button would otherwise bring the controls straight
+    // back every time they fade.
+    let last = null
+    this.root.addEventListener("mousemove", (event) => {
+      const at = `${event.screenX},${event.screenY}`
+      if (at === last) return
+      last = at
+      this.wake()
+    }, { passive: true })
+    this.root.addEventListener("focusin", () => this.wake())
     this.wake()
   }
 
@@ -221,9 +242,21 @@ export class Slideshow {
 
   sleep() {
     clearTimeout(this.idleTimer)
-    // Never hide the controls out from under keyboard focus.
-    if (this.root.querySelector("[data-slideshow-controls]").contains(document.activeElement)) return
+    // Never hide the controls out from under keyboard focus. A mouse click or
+    // a tap also leaves focus on the button, but not :focus-visible, and that
+    // must not pin the controls on screen for good.
+    if (this.keyboardFocusInControls()) return
     this.root.classList.add("is-idle")
+  }
+
+  keyboardFocusInControls() {
+    const focused = document.activeElement
+    if (!this.root.querySelector("[data-slideshow-controls]").contains(focused)) return false
+    try {
+      return focused.matches(":focus-visible")
+    } catch {
+      return true // A browser without :focus-visible keeps the old, safe rule.
+    }
   }
 
   showHint() {

@@ -6,17 +6,21 @@
       aria-roledescription="carousel" aria-label="Photos of Greig McRitchie">
   <h1 class="slideshow__title">Greig McRitchie</h1>
 
-  <div class="slideshow__stage" data-slideshow-stage aria-live="polite">
+  <div class="slideshow__stage" data-slideshow-stage>
     <% @photos.each_with_index do |photo, index| %>
       <figure class="slide slide--<%= photo.orientation %><%= " is-active" if index.zero? %>"
               id="photo-<%= photo.number %>"
               data-slide
               role="group" aria-roledescription="slide"
               aria-label="<%= index + 1 %> of <%= @photos.size %>">
+        <%# Photo and backdrop share srcset and sizes, so the browser picks
+            one file for both. Both fill the viewport, hence 100vw. %>
         <%= image_tag photo.filename, alt: "", aria: { hidden: true },
+              srcset: photo.srcset, sizes: (photo.srcset && "100vw"),
               class: "slide__backdrop", width: photo.width, height: photo.height,
               loading: index.zero? ? "eager" : "lazy", decoding: "async" %>
         <%= image_tag photo.filename, alt: photo.alt,
+              srcset: photo.srcset, sizes: (photo.srcset && "100vw"),
               class: "slide__photo", width: photo.width, height: photo.height,
               loading: index.zero? ? "eager" : "lazy", decoding: "async",
               fetchpriority: index.zero? ? "high" : "auto" %>
@@ -41,6 +45,10 @@
       <svg class="icon-collapse" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
     </button>
   </nav>
+
+  <%# Read aloud on each photo change while the viewer is driving; the script
+      turns it off during autoplay and fills it with "Photo 2 of 10: alt". %>
+  <p class="visually-hidden" data-slideshow-status aria-live="polite" aria-atomic="true"></p>
 
   <p class="slideshow__hint" data-slideshow-hint>Use the arrow keys or swipe</p>
 </main>
