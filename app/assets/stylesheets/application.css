@@ -235,6 +235,7 @@ html.js .slideshow__title {
   padding: 0 0.35rem;
   font-size: 0.9rem;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
   text-align: center;
   color: rgb(var(--ink) / 0.85);
 }
