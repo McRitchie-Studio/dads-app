@@ -40,11 +40,79 @@ class SlideshowTest < ApplicationSystemTestCase
     assert_selector "[data-slideshow][data-playing=false]"
     assert_selector "[data-action=toggle][aria-pressed=false][aria-label='Play slideshow']"
     # Paused, the photo changes are announced.
-    assert_selector "[data-slideshow-stage][aria-live=polite]"
+    assert_selector "[data-slideshow-status][aria-live=polite]", visible: :all
 
     press :space
     assert_selector "[data-slideshow][data-playing=true]"
-    assert_selector "[data-slideshow-stage][aria-live=off]"
+    assert_selector "[data-slideshow-status][aria-live=off]", visible: :all
+  end
+
+  test "each photo change is announced by name and position" do
+    visit_slideshow
+    press :space
+    assert_selector "[data-slideshow][data-playing=false]"
+    # Nothing is said on load.
+    assert_equal "", status_text
+
+    press :right
+    assert_active_photo 2
+    assert_equal "Photo 2 of 10: #{Photo.all[1].alt}", status_text
+
+    click_on "Previous photo"
+    click_on "Previous photo"
+    assert_active_photo 10
+    assert_equal "Photo 10 of 10: #{Photo.all[9].alt}", status_text
+  end
+
+  test "the controls fade after a mouse click even though the button keeps focus" do
+    visit_slideshow
+
+    click_on "Next photo"
+    assert_active_photo 2
+    assert page.evaluate_script("document.activeElement.dataset.action === 'next'"), "the click focused Next"
+
+    page.execute_script("window.slideshow.sleep()")
+    assert_selector "[data-slideshow].is-idle"
+  end
+
+  test "the controls fade after a finger tap on a button" do
+    visit_slideshow
+
+    button = find("[data-action=next]").native
+    finger = Selenium::WebDriver::Interactions.pointer(:touch, name: "finger")
+    page.driver.browser.action(devices: [ finger ])
+      .move_to(button).pointer_down(:left).pointer_up(:left).perform
+    assert_active_photo 2
+
+    page.execute_script("window.slideshow.sleep()")
+    assert_selector "[data-slideshow].is-idle"
+  end
+
+  test "keyboard focus on a control keeps the controls up" do
+    visit_slideshow
+
+    press :tab
+    assert page.evaluate_script("document.activeElement.matches('.control:focus-visible')"), "Tab focused a control"
+
+    page.execute_script("window.slideshow.sleep()")
+    assert_no_selector "[data-slideshow].is-idle"
+  end
+
+  test "a phone downloads the smaller copy of a wide photo" do
+    page.driver.browser.execute_cdp("Emulation.setDeviceMetricsOverride",
+      width: 390, height: 844, deviceScaleFactor: 3, mobile: true)
+    visit_slideshow
+
+    press :end
+    assert_active_photo 10
+    src = nil
+    Timeout.timeout(Capybara.default_max_wait_time) do
+      sleep 0.05 until (src = page.evaluate_script("document.querySelector('#photo-10 .slide__photo').currentSrc")).present?
+    end
+    # 390 CSS px at 3x wants about 1170 device px: the 1200w copy, not the 2400px original.
+    assert_match %r{/photos/greig10-1200w-[^/]*\.jpg\z}, src
+  ensure
+    page.driver.browser.execute_cdp("Emulation.clearDeviceMetricsOverride")
   end
 
   test "the buttons step, pause and show full screen" do
@@ -136,6 +204,10 @@ class SlideshowTest < ApplicationSystemTestCase
   def assert_active_photo(number)
     assert_selector "figure.is-active[data-slide]", count: 1
     assert_selector "figure#photo-#{number}.is-active[aria-hidden=false]"
+  end
+
+  def status_text
+    page.evaluate_script("document.querySelector('[data-slideshow-status]').textContent").strip
   end
 
   def assert_counter(text)
