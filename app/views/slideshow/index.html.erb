@@ -1,0 +1,46 @@
+<%# Full-screen slideshow. Without JavaScript (or on a browser too old for
+    import maps) the html element keeps its no-js class and the same markup
+    reads as a simple stacked gallery. app/javascript/slideshow.js swaps the
+    class to js and takes over. %>
+<main class="slideshow" data-slideshow data-interval="6000"
+      aria-roledescription="carousel" aria-label="Photos of Greig McRitchie">
+  <h1 class="slideshow__title">Greig McRitchie</h1>
+
+  <div class="slideshow__stage" data-slideshow-stage aria-live="polite">
+    <% @photos.each_with_index do |photo, index| %>
+      <figure class="slide slide--<%= photo.orientation %><%= " is-active" if index.zero? %>"
+              id="photo-<%= photo.number %>"
+              data-slide
+              role="group" aria-roledescription="slide"
+              aria-label="<%= index + 1 %> of <%= @photos.size %>">
+        <%= image_tag photo.filename, alt: "", aria: { hidden: true },
+              class: "slide__backdrop", width: photo.width, height: photo.height,
+              loading: index.zero? ? "eager" : "lazy", decoding: "async" %>
+        <%= image_tag photo.filename, alt: photo.alt,
+              class: "slide__photo", width: photo.width, height: photo.height,
+              loading: index.zero? ? "eager" : "lazy", decoding: "async",
+              fetchpriority: index.zero? ? "high" : "auto" %>
+      </figure>
+    <% end %>
+  </div>
+
+  <nav class="slideshow__controls" aria-label="Slideshow controls" data-slideshow-controls>
+    <button type="button" class="control" data-action="prev" aria-label="Previous photo">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <button type="button" class="control" data-action="toggle" aria-label="Play slideshow" aria-pressed="false">
+      <svg class="icon-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" class="fill"/></svg>
+      <svg class="icon-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
+    </button>
+    <span class="slideshow__counter" data-slideshow-counter>1 / <%= @photos.size %></span>
+    <button type="button" class="control" data-action="next" aria-label="Next photo">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+    <button type="button" class="control" data-action="fullscreen" aria-label="Enter full screen" aria-pressed="false" hidden>
+      <svg class="icon-expand" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      <svg class="icon-collapse" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>
+    </button>
+  </nav>
+
+  <p class="slideshow__hint" data-slideshow-hint>Use the arrow keys or swipe</p>
+</main>
