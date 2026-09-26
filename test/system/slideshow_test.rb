@@ -73,6 +73,7 @@ class SlideshowTest < ApplicationSystemTestCase
 
     page.execute_script("window.slideshow.sleep()")
     assert_selector "[data-slideshow].is-idle"
+    assert_controls_faded
   end
 
   test "the controls fade after a finger tap on a button" do
@@ -86,6 +87,7 @@ class SlideshowTest < ApplicationSystemTestCase
 
     page.execute_script("window.slideshow.sleep()")
     assert_selector "[data-slideshow].is-idle"
+    assert_controls_faded
   end
 
   test "keyboard focus on a control keeps the controls up" do
@@ -204,6 +206,20 @@ class SlideshowTest < ApplicationSystemTestCase
   def assert_active_photo(number)
     assert_selector "figure.is-active[data-slide]", count: 1
     assert_selector "figure#photo-#{number}.is-active[aria-hidden=false]"
+  end
+
+  # The class alone is not the fade: CSS must actually take the bar to zero
+  # opacity and stop it catching taps.
+  def assert_controls_faded
+    faded = -> {
+      page.evaluate_script(<<~JS)
+        (() => { const s = getComputedStyle(document.querySelector("[data-slideshow-controls]"))
+          return s.opacity === "0" && s.pointerEvents === "none" })()
+      JS
+    }
+    Timeout.timeout(Capybara.default_max_wait_time) { sleep 0.05 until faded.call }
+  rescue Timeout::Error
+    flunk "the controls stayed visible or tappable"
   end
 
   def status_text
