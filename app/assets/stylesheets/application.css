@@ -1,0 +1,305 @@
+/*
+ * Greig McRitchie — a full-screen photo slideshow.
+ *
+ * Two render paths share one markup:
+ *   html.no-js  a plain stacked gallery (no JavaScript, or a browser too old for import maps)
+ *   html.js     the full-screen slideshow driven by app/javascript/slideshow.js
+ */
+
+:root {
+  --ink: 255 255 255;
+  --stage: 0 0 0;
+  --fade: 900ms;
+  --chrome-fade: 400ms;
+  --font: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --ui-font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: rgb(var(--stage));
+  color: rgb(var(--ink));
+  font-family: var(--ui-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+/* ---------- no-js: a quiet stacked gallery ---------- */
+
+html.no-js .slideshow {
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: 2rem 1rem 4rem;
+}
+
+html.no-js .slideshow__title {
+  font-family: var(--font);
+  font-weight: 400;
+  font-size: clamp(1.75rem, 5vw, 3rem);
+  text-align: center;
+  margin: 0 0 2rem;
+}
+
+html.no-js .slide {
+  margin: 0 0 2rem;
+}
+
+html.no-js .slide__backdrop,
+html.no-js .slideshow__controls,
+html.no-js .slideshow__hint {
+  display: none;
+}
+
+html.no-js .slide__photo {
+  margin: 0 auto;
+  max-height: 90vh;
+  width: auto;
+}
+
+/* ---------- js: the full-screen slideshow ---------- */
+
+html.js,
+html.js body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html.js .slideshow {
+  position: fixed;
+  inset: 0;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: rgb(var(--stage));
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.js .slideshow__stage {
+  position: absolute;
+  inset: 0;
+  touch-action: pan-y pinch-zoom;
+}
+
+html.js .slide {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--fade) ease, visibility 0s linear var(--fade);
+}
+
+html.js .slide.is-active {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--fade) ease, visibility 0s linear 0s;
+}
+
+/* The same photo, blown up and blurred, fills the letterbox so a portrait
+   photo on a landscape screen (or the reverse) never sits in dead black. */
+html.js .slide__backdrop {
+  position: absolute;
+  inset: -8%;
+  width: 116%;
+  height: 116%;
+  max-width: none;
+  object-fit: cover;
+  filter: blur(40px) saturate(1.1) brightness(0.45);
+  transform: translateZ(0);
+}
+
+html.js .slide__photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: max(env(safe-area-inset-top), 0.5rem) max(env(safe-area-inset-right), 0.5rem)
+    max(env(safe-area-inset-bottom), 0.5rem) max(env(safe-area-inset-left), 0.5rem);
+  filter: drop-shadow(0 1.5rem 3rem rgb(0 0 0 / 0.55));
+}
+
+/* A slow drift while a photo is on screen (skipped under reduced motion).
+   A transition, not an animation: when a slide leaves, the delay holds its
+   drifted scale through the fade-out and resets it only once it is hidden. */
+html.js .slide__photo {
+  transform: scale(1);
+  transition: transform 0s linear var(--fade);
+}
+
+html.js .slide.is-active .slide__photo {
+  transform: scale(1.04);
+  transition: transform 12s ease-out;
+}
+
+/* ---------- chrome: title, controls, hint ---------- */
+
+html.js .slideshow__title {
+  position: absolute;
+  z-index: 2;
+  top: max(env(safe-area-inset-top), 1.25rem);
+  left: max(env(safe-area-inset-left), 1.5rem);
+  margin: 0;
+  font-family: var(--font);
+  font-weight: 400;
+  font-size: clamp(1.1rem, 2.6vw, 1.75rem);
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 12px rgb(0 0 0 / 0.7);
+  pointer-events: none;
+}
+
+.slideshow__controls {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: max(env(safe-area-inset-bottom), 1.25rem);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 0 0 1px rgb(var(--ink) / 0.12);
+}
+
+.control {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgb(var(--ink));
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.control[hidden] {
+  display: none;
+}
+
+.control:hover {
+  background: rgb(var(--ink) / 0.14);
+}
+
+.control:focus-visible {
+  outline: 2px solid rgb(var(--ink));
+  outline-offset: 2px;
+}
+
+.control svg {
+  width: 1.4rem;
+  height: 1.4rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.control svg .fill {
+  fill: currentColor;
+  stroke: none;
+}
+
+.control[aria-pressed="true"] .icon-play,
+.control[aria-pressed="false"] .icon-pause,
+.control[aria-pressed="true"] .icon-expand,
+.control[aria-pressed="false"] .icon-collapse {
+  display: none;
+}
+
+.slideshow__counter {
+  min-width: 4.5ch;
+  padding: 0 0.35rem;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: center;
+  color: rgb(var(--ink) / 0.85);
+}
+
+html.js .slideshow__hint {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  bottom: calc(max(env(safe-area-inset-bottom), 1.25rem) + 4.25rem);
+  margin: 0;
+  text-align: center;
+  font-size: 0.85rem;
+  color: rgb(var(--ink) / 0.7);
+  text-shadow: 0 1px 8px rgb(0 0 0 / 0.8);
+  pointer-events: none;
+  transition: opacity 1.2s ease;
+}
+
+html.js .slideshow__hint.is-gone {
+  opacity: 0;
+}
+
+/* The chrome fades away while nobody is touching anything, and comes back
+   on any movement, tap, or keyboard focus. */
+html.js .slideshow__title,
+.slideshow__controls {
+  transition: opacity var(--chrome-fade) ease;
+}
+
+html.js .slideshow.is-idle .slideshow__title,
+html.js .slideshow.is-idle .slideshow__controls {
+  opacity: 0;
+}
+
+/* Hidden controls take no taps: a finger on the invisible bar lands on the
+   stage, which wakes the chrome instead of pressing a button unseen. */
+html.js .slideshow.is-idle .slideshow__controls:not(:focus-within) {
+  pointer-events: none;
+}
+
+html.js .slideshow.is-idle {
+  cursor: none;
+}
+
+html.js .slideshow.is-idle .slideshow__controls:focus-within {
+  opacity: 1;
+}
+
+/* ---------- reduced motion: cut, don't fade or drift ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --fade: 0ms;
+    --chrome-fade: 0ms;
+  }
+
+  html.js .slide__photo,
+  html.js .slide.is-active .slide__photo {
+    transform: none;
+    transition: none;
+  }
+
+  html.js .slideshow__hint {
+    transition: none;
+  }
+}
