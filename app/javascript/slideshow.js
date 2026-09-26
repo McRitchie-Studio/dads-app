@@ -218,9 +218,19 @@ export class Slideshow {
   // ---- idle chrome ------------------------------------------------------
 
   bindIdle() {
-    const wake = () => this.wake()
-    this.root.addEventListener("mousemove", wake, { passive: true })
-    this.root.addEventListener("focusin", wake)
+    // Only a mouse that actually moved wakes the chrome. Chrome also fires
+    // mousemove at a resting cursor when the element under it changes, and
+    // the idle bar dropping its pointer events is exactly such a change, so
+    // a cursor left on a button would otherwise bring the controls straight
+    // back every time they fade.
+    let last = null
+    this.root.addEventListener("mousemove", (event) => {
+      const at = `${event.screenX},${event.screenY}`
+      if (at === last) return
+      last = at
+      this.wake()
+    }, { passive: true })
+    this.root.addEventListener("focusin", () => this.wake())
     this.wake()
   }
 

@@ -90,6 +90,22 @@ class SlideshowTest < ApplicationSystemTestCase
     assert_controls_faded
   end
 
+  # Chrome fires a mousemove at a resting cursor when the element under it
+  # changes, and the idle bar dropping its pointer events is such a change.
+  # Waking on that would bring the controls straight back (CI caught it).
+  test "a mouse that has not moved does not wake the controls" do
+    visit_slideshow
+    move_mouse_to 300, 300
+    page.execute_script("window.slideshow.sleep()")
+    assert_selector "[data-slideshow].is-idle"
+
+    move_mouse_to 300, 300
+    assert_selector "[data-slideshow].is-idle"
+
+    move_mouse_to 340, 300
+    assert_no_selector "[data-slideshow].is-idle"
+  end
+
   test "keyboard focus on a control keeps the controls up" do
     visit_slideshow
 
@@ -220,6 +236,14 @@ class SlideshowTest < ApplicationSystemTestCase
     Timeout.timeout(Capybara.default_max_wait_time) { sleep 0.05 until faded.call }
   rescue Timeout::Error
     flunk "the controls stayed visible or tappable"
+  end
+
+  def move_mouse_to(x, y)
+    page.execute_script(<<~JS, x, y)
+      const [x, y] = arguments
+      document.querySelector("[data-slideshow-stage]").dispatchEvent(
+        new MouseEvent("mousemove", { bubbles: true, clientX: x, clientY: y, screenX: x, screenY: y }))
+    JS
   end
 
   def status_text
