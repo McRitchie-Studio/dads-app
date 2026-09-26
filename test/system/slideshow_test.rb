@@ -65,8 +65,17 @@ class SlideshowTest < ApplicationSystemTestCase
 
   test "autoplay advances on its own" do
     visit_slideshow
-    page.execute_script("window.slideshow.interval = 150; window.slideshow.play()")
+    # Shorten the clock, and freeze the show after its first automatic step so
+    # the assertion cannot race a fast interval past photo 2.
+    page.execute_script(<<~JS)
+      const show = window.slideshow
+      const step = show.next.bind(show)
+      show.next = () => { step(); show.pause(); document.body.dataset.advanced = String(show.index + 1) }
+      show.interval = 150
+      show.play()
+    JS
 
+    assert_selector "body[data-advanced='2']"
     assert_active_photo 2
   end
 
