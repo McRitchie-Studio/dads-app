@@ -38,6 +38,25 @@ class PhotoTest < ActiveSupport::TestCase
     assert_equal "portrait", Photo.all.second.orientation
   end
 
+  test "photos wider than a phone needs carry smaller copies" do
+    assert_equal [ 640, 1200 ], Photo.all[8].variants.map(&:width), "photo 9 is 2400px"
+    assert_equal [ 640, 1200 ], Photo.all[9].variants.map(&:width), "photo 10 is 2400px"
+    assert_equal [ 640 ], Photo.all[2].variants.map(&:width), "photo 3 is 1024px"
+    assert_empty Photo.all[0].variants, "photo 1 is already 639px"
+  end
+
+  test "every smaller copy exists, is the width it claims, and keeps the aspect ratio" do
+    Photo.all.flat_map { |photo| photo.variants.map { |variant| [ photo, variant ] } }.each do |photo, variant|
+      path = PHOTO_DIR.join(variant.filename)
+      assert path.file?, "missing #{variant.filename}"
+      width, height = jpeg_size(path)
+      assert_equal variant.width, width, "#{variant.filename} width"
+      assert_equal variant.height, height, "#{variant.filename} height"
+      assert_in_delta photo.height * variant.width / photo.width.to_f, height, 1, "#{variant.filename} aspect ratio"
+      assert_operator path.size, :<, PHOTO_DIR.join(photo.filename).size, "#{variant.filename} is no lighter than the original"
+    end
+  end
+
   private
 
   # Width and height from the first start-of-frame marker (SOF0..SOF15,

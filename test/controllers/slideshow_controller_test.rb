@@ -53,4 +53,47 @@ class SlideshowControllerTest < ActionDispatch::IntegrationTest
       assert_select "[data-slideshow-counter]", "1 / 10"
     end
   end
+
+  test "the page sets no cookie" do
+    get root_path
+    assert_response :success
+    assert_nil response.headers["set-cookie"], "a public slideshow has no session to keep"
+    assert_select "meta[name=csrf-token]", 0
+  end
+
+  test "a polite live region names each photo change" do
+    get root_path
+    # One region, outside the slides, read whole on every change. It starts
+    # empty so nothing is announced on page load.
+    assert_select "[data-slideshow] > [data-slideshow-status][aria-live=polite][aria-atomic=true].visually-hidden", 1 do |region|
+      assert_equal "", region.first.text.strip
+    end
+    # The stage itself is not a live region, or a change would be read twice.
+    assert_select "[data-slideshow-stage][aria-live]", 0
+  end
+
+  test "wide photos offer smaller copies so phones download less" do
+    get root_path
+
+    Photo.all.each do |photo|
+      assert_select "figure#photo-#{photo.number}" do
+        if photo.variants.empty?
+          assert_select "img[srcset]", 0
+        else
+          # Photo and backdrop carry the same candidates and sizes, so the
+          # browser picks one file for both.
+          assert_select "img.slide__photo[srcset][sizes='100vw'], img.slide__backdrop[srcset][sizes='100vw']", 2 do |imgs|
+            imgs.each do |img|
+              widths = img["srcset"].split(",").map { |c| c.strip.split(" ").last }
+              assert_equal photo.variants.map { |v| "#{v.width}w" } + [ "#{photo.width}w" ], widths
+            end
+          end
+        end
+      end
+    end
+
+    # The 2400px photos are the ones that matter most.
+    assert_select "figure#photo-9 img.slide__photo[srcset*='greig9-640w'][srcset*='greig9-1200w']"
+    assert_select "figure#photo-10 img.slide__photo[srcset*='greig10-640w'][srcset*='greig10-1200w']"
+  end
 end
