@@ -63,6 +63,19 @@ class SlideshowTest < ApplicationSystemTestCase
     assert_selector "button[data-action=fullscreen]:not([hidden])[aria-label='Enter full screen']"
   end
 
+  test "idle controls are invisible and let a tap through to the stage" do
+    visit_slideshow
+    page.execute_script("window.slideshow.sleep()")
+    assert_selector "[data-slideshow].is-idle"
+
+    # A finger landing where Next sits must wake the chrome, not press Next.
+    hit = page.evaluate_script(<<~JS)
+      (() => { const r = document.querySelector("[data-action=next]").getBoundingClientRect()
+        return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2).closest("[data-slideshow-controls]") })()
+    JS
+    assert_nil hit
+  end
+
   test "autoplay advances on its own" do
     visit_slideshow
     # Shorten the clock, and freeze the show after its first automatic step so

@@ -271,6 +271,12 @@ html.js .slideshow.is-idle .slideshow__controls {
   opacity: 0;
 }
 
+/* Hidden controls take no taps: a finger on the invisible bar lands on the
+   stage, which wakes the chrome instead of pressing a button unseen. */
+html.js .slideshow.is-idle .slideshow__controls:not(:focus-within) {
+  pointer-events: none;
+}
+
 html.js .slideshow.is-idle {
   cursor: none;
 }
