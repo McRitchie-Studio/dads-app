@@ -35,5 +35,9 @@ module DadsApp
     #
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
+
+    # A public slideshow with no forms and no sign-in has nothing to keep in a
+    # session, so it sets no cookie at all.
+    config.session_store :disabled
   end
 end
